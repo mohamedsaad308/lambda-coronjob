@@ -34,45 +34,27 @@ resource "aws_iam_role" "lambda_role" {
   })
 }
 
-resource "aws_iam_policy" "lambda_policy" {
-  name        = "MyLambdaPolicy"
-  description = "Policy for my Lambda function"
-  
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-        ],
-        Effect   = "Allow",
-        Resource = "*",
-      },
-    ],
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
-  policy_arn = aws_iam_policy.lambda_policy.arn
-  role       = aws_iam_role.lambda_role.name
-}
-
 resource "aws_cloudwatch_event_rule" "lambda_schedule" {
   name = "MyLambdaSchedule"
   description = "Schedule for running the Lambda function"
   schedule_expression = "cron(0 3 * * ? *)" # Runs every day at 3:00 AM UTC
 
-  event_pattern = jsonencode({
-    source = ["aws.events"],
-  })
 }
 
 resource "aws_cloudwatch_event_target" "lambda_target" {
   rule = aws_cloudwatch_event_rule.lambda_schedule.name
   arn  = aws_lambda_function.my_lambda.arn
 }
+
+
+resource "aws_lambda_permission" "allow_eventbridge" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.my_lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.lambda_schedule.arn
+}
+
 
 output "lambda_function_arn" {
   value = aws_lambda_function.my_lambda.arn
